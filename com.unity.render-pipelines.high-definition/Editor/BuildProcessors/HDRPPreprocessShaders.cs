@@ -375,16 +375,7 @@ namespace UnityEditor.Rendering.HighDefinition
                             ++i;
                     }
 
-                    if (inputData is List<ShaderCompilerData> inputDataList)
-                    {
-                        inputDataList.RemoveRange(inputShaderVariantCount,
-                            inputDataList.Count - inputShaderVariantCount);
-                    }
-                    else
-                    {
-                        for (int i = inputData.Count - 1; i >= inputShaderVariantCount; --i)
-                            inputData.RemoveAt(i);
-                    }
+                    inputData.RemoveRange(inputShaderVariantCount, inputData.Count - inputShaderVariantCount);
                 }
 
                 LogShaderVariants(shader, kernelName, preStrippingCount, (uint)inputData.Count, stripTimeMs);
