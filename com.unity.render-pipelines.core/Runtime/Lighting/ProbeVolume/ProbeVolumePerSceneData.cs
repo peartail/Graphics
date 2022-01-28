@@ -37,7 +37,7 @@ namespace UnityEngine.Experimental.Rendering
 
         internal Dictionary<string, PerStateData> states = new();
 
-        string currentState = null;
+        string currentState0 = null, currentState1 = null;
 
         /// <summary>
         /// OnAfterDeserialize implementation.
@@ -142,9 +142,12 @@ namespace UnityEngine.Experimental.Rendering
         bool ResolveSharedCellData() => asset != null && asset.ResolveSharedCellData(cellSharedDataAsset, cellSupportDataAsset);
         bool ResolvePerStateCellData()
         {
-            if (currentState == null || !states.TryGetValue(currentState, out var data))
+            if (currentState0 == null || !states.TryGetValue(currentState0, out var data0))
                 return false;
-            return asset.ResolvePerStateCellData(data.cellDataAsset, data.cellOptionalDataAsset);
+            bool result = asset.ResolvePerStateCellData(0, data0.cellDataAsset, data0.cellOptionalDataAsset);
+            if (currentState1 != null && states.TryGetValue(currentState1, out var data1))
+                result = asset.ResolvePerStateCellData(1, data1.cellDataAsset, data1.cellOptionalDataAsset);
+            return result;
         }
 
         internal void QueueAssetLoading()
@@ -171,8 +174,9 @@ namespace UnityEngine.Experimental.Rendering
             ProbeReferenceVolume.instance.RegisterPerSceneData(this);
 
             ResolveSharedCellData();
-            if (ProbeReferenceVolume.instance.sceneData != null)
-                SetBakingState(ProbeReferenceVolume.instance.bakingState);
+            var prv = ProbeReferenceVolume.instance;
+            if (prv.sceneData != null)
+                SetBakingState(prv.bakingState0, prv.bakingState1);
             // otherwise baking state will be initialized in ProbeReferenceVolume.Initialize when sceneData is loaded
         }
 
@@ -185,16 +189,17 @@ namespace UnityEngine.Experimental.Rendering
         void OnDestroy()
         {
             QueueAssetRemoval();
-            currentState = null;
+            currentState0 = currentState1 = null;
         }
 
-        internal void SetBakingState(string state)
+        internal void SetBakingState(string state0, string state1)
         {
-            if (state == currentState)
+            if (state0 == currentState0 && state1 == currentState1)
                 return;
 
             QueueAssetRemoval();
-            currentState = state;
+            currentState0 = state0;
+            currentState1 = state1;
             QueueAssetLoading();
         }
 

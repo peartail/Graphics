@@ -24,6 +24,7 @@ namespace UnityEngine.Experimental.Rendering
 
         [SerializeField] protected internal int m_Version = (int)AssetVersion.Current;
 
+        //internal string state0 = null, state1 = null;
         [SerializeField] internal ProbeReferenceVolume.Cell[] cells;
         [SerializeField] internal CellCounts[] cellCounts;
         [SerializeField] internal CellCounts totalCellCounts;
@@ -34,7 +35,7 @@ namespace UnityEngine.Experimental.Rendering
 
         [SerializeField] internal ProbeVolumeSHBands bands;
 
-        [SerializeField] string m_AssetFullPath = "UNINITIALIZED!";
+        [SerializeField] internal string m_AssetFullPath = "UNINITIALIZED!";
 
         // Profile info
         [SerializeField] internal int cellSizeInBricks;
@@ -126,7 +127,7 @@ namespace UnityEngine.Experimental.Rendering
             return true;
         }
 
-        internal bool ResolvePerStateCellData(TextAsset cellDataAsset, TextAsset cellOptionalDataAsset)
+        internal bool ResolvePerStateCellData(int index, TextAsset cellDataAsset, TextAsset cellOptionalDataAsset)
         {
             if (cellDataAsset == null)
                 return false;
@@ -147,15 +148,15 @@ namespace UnityEngine.Experimental.Rendering
             var startCounts = new CellCounts();
             for (var i = 0; i < cells.Length; ++i)
             {
-                var cell = cells[i];
                 var counts = cellCounts[i];
+                var cellState = new ProbeReferenceVolume.Cell.PerStateData();
 
-                cell.shL0L1Data = shL0L1Data.GetSubArray(startCounts.probesCount * kL0L1ScalarCoefficientsCount, counts.probesCount * kL0L1ScalarCoefficientsCount);
-
+                cellState.shL0L1Data = shL0L1Data.GetSubArray(startCounts.probesCount * kL0L1ScalarCoefficientsCount, counts.probesCount * kL0L1ScalarCoefficientsCount);
                 if (hasOptionalData)
-                    cell.shL2Data = shL2Data.GetSubArray(startCounts.probesCount * kL2ScalarCoefficientsCount, counts.probesCount * kL2ScalarCoefficientsCount);
+                    cellState.shL2Data = shL2Data.GetSubArray(startCounts.probesCount * kL2ScalarCoefficientsCount, counts.probesCount * kL2ScalarCoefficientsCount);
 
-                startCounts.Add(counts);
+                if (index == 0) cells[i].state0 = cellState;
+                else            cells[i].state1 = cellState;
             }
 
             return true;

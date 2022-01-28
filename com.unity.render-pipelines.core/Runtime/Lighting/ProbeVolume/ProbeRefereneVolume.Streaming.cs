@@ -10,6 +10,7 @@ namespace UnityEngine.Experimental.Rendering
         DynamicArray<CellInfo> m_TempCellToLoadList = new DynamicArray<CellInfo>();
         DynamicArray<CellInfo> m_TempCellToUnloadList = new DynamicArray<CellInfo>();
 
+        float m_LerpFactorForLoadedCells = 0.0f;
         Vector3 m_FrozenCameraPosition;
 
         /// <summary>
@@ -66,6 +67,9 @@ namespace UnityEngine.Experimental.Rendering
 
             // Cell position in cell space is the top left corner. So we need to shift the camera position by half a cell to make things comparable.
             var cameraPositionCellSpace = (m_FrozenCameraPosition - m_Transform.posWS) / MaxBrickSize() - Vector3.one * 0.5f;
+
+            if (m_LerpFactorForLoadedCells != instance.sceneData.bakingStateLerp)
+                UnloadAllCells();
 
             ComputeCellCameraDistance(cameraPositionCellSpace, m_ToBeLoadedCells);
             ComputeCellCameraDistance(cameraPositionCellSpace, m_LoadedCells);

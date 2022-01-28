@@ -391,9 +391,14 @@ namespace UnityEngine.Experimental.Rendering
             public NativeArray<Vector3> probePositions { get; internal set; }
             public NativeArray<Vector3> offsetVectors { get; internal set; }
 
-            // Per state data
-            public NativeArray<float> shL0L1Data { get; internal set; } // pre-swizzled for runtime upload (12 coeffs)
-            public NativeArray<float> shL2Data { get; internal set; } // pre-swizzled for runtime upload (15 coeffs)
+            [NonSerialized] public PerStateData state0;
+            [NonSerialized] public PerStateData state1;
+
+            public struct PerStateData
+            {
+                public NativeArray<float> shL0L1Data { get; internal set; } // pre-swizzled for runtime upload (12 coeffs)
+                public NativeArray<float> shL2Data { get; internal set; } // pre-swizzled for runtime upload (15 coeffs)
+            }
         }
 
         [DebuggerDisplay("Index = {cell.index} Loaded = {loaded}")]
@@ -669,21 +674,41 @@ namespace UnityEngine.Experimental.Rendering
 
         /// <summary>Delegate for baking state change.</summary>
         /// <param name="newState">The new baking state.</param>
-        public delegate void BakingStateChangedDelegate(string newState);
+        public delegate void BakingStateChangedDelegate(string newState0, string newState1, float lerpFactor);
         /// <summary>Delegate called when the baking state is changed. </summary>
         public BakingStateChangedDelegate onBakingStateChanged;
 
-        /// <summary>The currently selected baking state.</summary>
-        public string bakingState
+        /// <summary>Used for baking, you can only bake to state 0.</summary>
+        internal string bakingState
         {
-            get => sceneData.bakingState;
-            set
-            {
-                sceneData.bakingState = value;
+            get => bakingState0;
+            set => bakingState0 = value;
+        }
+        /// <summary>The currently selected baking state 0.</summary>
+        public string bakingState0
+        {
+            get => sceneData.bakingState0;
+            set => SetBakingState(value, null, 0.0f);
+        }
+        /// <summary>The currently selected baking state 1.</summary>
+        public string bakingState1
+        {
+            get => sceneData.bakingState1;
+            set => SetBakingState(null, value, 1.0f);
+        }
+        /// <summary>The lerping factor between baking states.</summary>
+        public float bakingStateLerp
+        {
+            get => sceneData.bakingStateLerp;
+            set => SetBakingState(bakingState0, bakingState1, value);
+        }
+
+        public void SetBakingState(string state0, string state1, float lerp)
+        {
+            sceneData.SetBakingState(state0, state1, lerp);
 #if UNITY_EDITOR
-                EditorUtility.SetDirty(sceneData.parentAsset);
+            EditorUtility.SetDirty(sceneData.parentAsset);
 #endif
-            }
         }
 
         internal static string defaultBakingState = "Default";
@@ -755,7 +780,7 @@ namespace UnityEngine.Experimental.Rendering
 
             if (sceneData != null)
                 foreach (var data in ProbeReferenceVolume.instance.perSceneDataList)
-                    data.SetBakingState(sceneData.bakingState);
+                    data.SetBakingState(sceneData.bakingState0, null);
         }
 
         /// <summary>
@@ -876,7 +901,7 @@ namespace UnityEngine.Experimental.Rendering
                 cellInfo = m_CellInfoPool.Get();
                 cellInfo.cell = cell;
                 cellInfo.flatIdxInCellIndices = m_CellIndices.GetFlatIdxForCell(cell.position);
-                cellInfo.sourceAssetInstanceID = assetInstanceID;
+                cellInfo.sourceAssetInstanceID = assetInstanceID; // TODO: should be 0 and 1 ?
                 cellInfo.referenceCount = 1;
                 cells[cell.index] = cellInfo;
 
@@ -1310,7 +1335,11 @@ namespace UnityEngine.Experimental.Rendering
             while (chunkIndex < cellInfo.chunkList.Count)
             {
                 int chunkToProcess = Math.Min(kTemporaryDataLocChunkCount, cellInfo.chunkList.Count - chunkIndex);
-                ProbeBrickPool.FillDataLocation(ref m_TemporaryDataLocation, cell.shBands, cell.shL0L1Data, cell.shL2Data, cell.validity, chunkIndex * ProbeBrickPool.GetChunkSizeInProbeCount(), chunkToProcess * ProbeBrickPool.GetChunkSizeInProbeCount(), m_SHBands);
+                ProbeBrickPool.FillDataLocation(ref m_TemporaryDataLocation, cell.shBands,
+                    cell.state0.shL0L1Data, cell.state0.shL2Data, cell.validity,
+                    chunkIndex * ProbeBrickPool.GetChunkSizeInProbeCount(),
+                    chunkToProcess * ProbeBrickPool.GetChunkSizeInProbeCount(),
+                    m_SHBands);
 
                 // copy chunks into pool
                 m_TmpSrcChunks.Clear();

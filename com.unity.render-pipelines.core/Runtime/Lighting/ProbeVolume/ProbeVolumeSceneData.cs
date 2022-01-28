@@ -95,19 +95,31 @@ namespace UnityEngine.Experimental.Rendering
         internal Dictionary<string, ProbeVolumeBakingProcessSettings> sceneBakingSettings;
         internal List<BakingSet> bakingSets;
 
-        [SerializeField] string m_BakingState = ProbeReferenceVolume.defaultBakingState;
-        internal string bakingState
+        [SerializeField] string m_BakingState0 = ProbeReferenceVolume.defaultBakingState;
+        [SerializeField] string m_BakingState1 = ProbeReferenceVolume.defaultBakingState;
+        [SerializeField] float m_BakingStateLerp = 0.0f;
+        internal string bakingState0 => m_BakingState0;
+        internal string bakingState1 => m_BakingState1;
+        internal float bakingStateLerp => m_BakingStateLerp;
+
+        public void SetBakingState(string state0, string state1, float lerp)
         {
-            get => m_BakingState;
-            set
+            if (state0 == null)
+                lerp = 1.0f;
+            if (state1 == null)
+                lerp = 0.0f;
+            if (state0 != m_BakingState0 || state1 != m_BakingState1)
             {
-                if (value == m_BakingState)
-                    return;
-                m_BakingState = value;
+                m_BakingState0 = state0;
+                m_BakingState1 = state1;
                 foreach (var data in ProbeReferenceVolume.instance.perSceneDataList)
-                    data.SetBakingState(value);
-                ProbeReferenceVolume.instance.onBakingStateChanged?.Invoke(value);
+                    data.SetBakingState(state0, state1);
             }
+            else if (m_BakingStateLerp == lerp)
+                return;
+
+            m_BakingStateLerp = lerp;
+            ProbeReferenceVolume.instance.onBakingStateChanged?.Invoke(state0, state1, lerp);
         }
 
         /// <summary>
@@ -179,8 +191,10 @@ namespace UnityEngine.Experimental.Rendering
                 sceneBakingSettings.Add(settingsItem.sceneGUID, settingsItem.settings);
             }
 
-            if (string.IsNullOrEmpty(m_BakingState))
-                m_BakingState = ProbeReferenceVolume.defaultBakingState;
+            if (string.IsNullOrEmpty(m_BakingState0))
+                m_BakingState0 = ProbeReferenceVolume.defaultBakingState;
+            if (string.IsNullOrEmpty(m_BakingState1))
+                m_BakingState1 = ProbeReferenceVolume.defaultBakingState;
 
             foreach (var set in serializedBakingSets)
             {
