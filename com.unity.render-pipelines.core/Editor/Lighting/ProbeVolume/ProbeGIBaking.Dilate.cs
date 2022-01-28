@@ -109,7 +109,7 @@ namespace UnityEngine.Experimental.Rendering
                 dilatedProbes = new DilatedProbe[probeCount];
                 for (int i = 0; i < probeCount; ++i)
                 {
-                    dilatedProbes[i].FromSphericalHarmonicsShaderConstants(cell.shBands, cell.shL0L1Data, cell.shL2Data, i);
+                    dilatedProbes[i].FromSphericalHarmonicsShaderConstants(cell.shBands, cell.state0.shL0L1Data, cell.state0.shL2Data, i);
                 }
 
                 outputProbes.SetData(dilatedProbes);
@@ -124,7 +124,7 @@ namespace UnityEngine.Experimental.Rendering
                 int probeCount = cell.probePositions.Length;
                 for (int i = 0; i < probeCount; ++i)
                 {
-                    dilatedProbes[i].ToSphericalHarmonicsShaderConstants(cell.shBands, cell.shL0L1Data, cell.shL2Data, i);
+                    dilatedProbes[i].ToSphericalHarmonicsShaderConstants(cell.shBands, cell.state0.shL0L1Data, cell.state0.shL2Data, i);
                 }
             }
 

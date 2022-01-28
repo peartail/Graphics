@@ -200,8 +200,6 @@ namespace UnityEngine.Experimental.Rendering
                 var profile = ProbeReferenceVolume.instance.sceneData.GetProfileForScene(scene);
                 Debug.Assert(profile != null, "Trying to bake a scene without a profile properly set.");
 
-                data.SetBakingState(ProbeReferenceVolume.instance.bakingState);
-
                 if (i == 0)
                 {
                     m_BakingProfile = profile;
@@ -227,6 +225,9 @@ namespace UnityEngine.Experimental.Rendering
             if (hasFoundInvalidSetup) return;
 
             SetBakingContext(ProbeReferenceVolume.instance.perSceneDataList);
+
+            foreach (var data in ProbeReferenceVolume.instance.perSceneDataList)
+                data.Initialize();
 
             RunPlacement();
         }
@@ -282,10 +283,10 @@ namespace UnityEngine.Experimental.Rendering
                 {
                     if (dilationSettings.enableDilation && dilationSettings.dilationDistance > 0.0f && cell.validity[i] > dilationSettings.dilationValidityThreshold)
                     {
-                        WriteToShaderCoeffsL0L1(ref blackProbe, cell.shL0L1Data, i * ProbeVolumeAsset.kL0L1ScalarCoefficientsCount);
+                        WriteToShaderCoeffsL0L1(ref blackProbe, cell.state0.shL0L1Data, i * ProbeVolumeAsset.kL0L1ScalarCoefficientsCount);
 
                         if (cell.shBands == ProbeVolumeSHBands.SphericalHarmonicsL2)
-                            WriteToShaderCoeffsL2(ref blackProbe, cell.shL2Data, i * ProbeVolumeAsset.kL2ScalarCoefficientsCount);
+                            WriteToShaderCoeffsL2(ref blackProbe, cell.state0.shL2Data, i * ProbeVolumeAsset.kL2ScalarCoefficientsCount);
                     }
                 }
             }
@@ -523,14 +524,15 @@ namespace UnityEngine.Experimental.Rendering
                         var l0 = sh[j][rgb, 0];
 
                         if (l0 == 0.0f)
-                            continue;
-
-                        if (dilationSettings.enableDilation && dilationSettings.dilationDistance > 0.0f && validity[j] > dilationSettings.dilationValidityThreshold)
+                        {
+                            shv[rgb, 0] = 0.0f;
+                            for (int k = 1; k < 9; ++k)
+                                shv[rgb, k] = 0.5f;
+                        }
+                        else if (dilationSettings.enableDilation && dilationSettings.dilationDistance > 0.0f && validity[j] > dilationSettings.dilationValidityThreshold)
                         {
                             for (int k = 0; k < 9; ++k)
-                            {
-                                shv[rgb, k] = 0.0f;
-                            }
+                                shv[rgb, 0] = 0.0f;
                         }
                         else
                         {
