@@ -95,31 +95,24 @@ namespace UnityEngine.Experimental.Rendering
         internal Dictionary<string, ProbeVolumeBakingProcessSettings> sceneBakingSettings;
         internal List<BakingSet> bakingSets;
 
-        [SerializeField] string m_BakingState0 = ProbeReferenceVolume.defaultBakingState;
-        [SerializeField] string m_BakingState1 = ProbeReferenceVolume.defaultBakingState;
-        [SerializeField] float m_BakingStateLerp = 0.0f;
-        internal string bakingState0 => m_BakingState0;
-        internal string bakingState1 => m_BakingState1;
-        internal float bakingStateLerp => m_BakingStateLerp;
+        [SerializeField] string m_BakingState = ProbeReferenceVolume.defaultBakingState;
+        internal string bakingState => m_BakingState;
 
-        public void SetBakingState(string state0, string state1, float lerp)
+        internal string previousBakingState;
+
+        public void SetBakingState(string state, float transitionTime)
         {
-            if (state0 == null)
-                lerp = 1.0f;
-            if (state1 == null)
-                lerp = 0.0f;
-            if (state0 != m_BakingState0 || state1 != m_BakingState1)
-            {
-                m_BakingState0 = state0;
-                m_BakingState1 = state1;
-                foreach (var data in ProbeReferenceVolume.instance.perSceneDataList)
-                    data.SetBakingState(state0, state1);
-            }
-            else if (m_BakingStateLerp == lerp)
-                return;
+            if (m_BakingState == null)
+                transitionTime = 0.0f;
+            if (transitionTime == 0.0f)
+                previousBakingState = null;
+            else if (state != m_BakingState)
+                previousBakingState = m_BakingState;
+            m_BakingState = state;
 
-            m_BakingStateLerp = lerp;
-            ProbeReferenceVolume.instance.onBakingStateChanged?.Invoke(state0, state1, lerp);
+            ProbeReferenceVolume.instance.stateTransitionTime = transitionTime;
+            foreach (var data in ProbeReferenceVolume.instance.perSceneDataList)
+                data.UpdateBakingState();
         }
 
         /// <summary>
@@ -191,10 +184,8 @@ namespace UnityEngine.Experimental.Rendering
                 sceneBakingSettings.Add(settingsItem.sceneGUID, settingsItem.settings);
             }
 
-            if (string.IsNullOrEmpty(m_BakingState0))
-                m_BakingState0 = ProbeReferenceVolume.defaultBakingState;
-            if (string.IsNullOrEmpty(m_BakingState1))
-                m_BakingState1 = ProbeReferenceVolume.defaultBakingState;
+            if (string.IsNullOrEmpty(m_BakingState))
+                m_BakingState = ProbeReferenceVolume.defaultBakingState;
 
             foreach (var set in serializedBakingSets)
             {

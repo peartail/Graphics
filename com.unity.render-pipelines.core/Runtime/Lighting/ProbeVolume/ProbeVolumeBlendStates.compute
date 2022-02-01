@@ -1,0 +1,62 @@
+#pragma kernel BlendStates
+#pragma enable_d3d11_debug_symbols
+
+#pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch
+
+#pragma multi_compile _ PROBE_VOLUMES_L2
+
+#include "Packages/com.unity.render-pipelines.core/Runtime/Lighting/ProbeVolume/ProbeVolumeBlendStates.hlsl"
+
+Texture3D<float4> _State0_L0_L1Rx;
+Texture3D<float4> _State0_L1G_L1Ry;
+Texture3D<float4> _State0_L1B_L1Rz;
+
+Texture3D<float4> _State1_L0_L1Rx;
+Texture3D<float4> _State1_L1G_L1Ry;
+Texture3D<float4> _State1_L1B_L1Rz;
+
+RWTexture3D<float4> _Out_L0_L1Rx;
+RWTexture3D<float4> _Out_L1G_L1Ry;
+RWTexture3D<float4> _Out_L1B_L1Rz;
+
+#ifdef PROBE_VOLUMES_L2
+Texture3D<float4> _State0_L2_0;
+Texture3D<float4> _State0_L2_1;
+Texture3D<float4> _State0_L2_2;
+Texture3D<float4> _State0_L2_3;
+
+Texture3D<float4> _State1_L2_0;
+Texture3D<float4> _State1_L2_1;
+Texture3D<float4> _State1_L2_2;
+Texture3D<float4> _State1_L2_3;
+
+RWTexture3D<float4> _Out_L2_0;
+RWTexture3D<float4> _Out_L2_1;
+RWTexture3D<float4> _Out_L2_2;
+RWTexture3D<float4> _Out_L2_3;
+#endif
+
+float4 _StartLoc_LerpFactor;
+#define _StartLoc _StartLoc_LerpFactor.xyz
+#define _LerpFactor _StartLoc_LerpFactor.w
+
+[numthreads(8, 8, 8)]
+void BlendStates(uint3 loc : SV_DispatchThreadID)
+{
+    // Load
+    APVResources resources0, resources1;
+    LOAD_APV_RES(resources0, _State0);
+    LOAD_APV_RES(resources1, _State1);
+
+    APVSample state0 = LoadAndDecodeAPV(resources0, loc);
+    APVSample state1 = LoadAndDecodeAPV(resources1, loc);
+
+    // Blend
+    state0 = BlendAPVSamples(state1, state0, _LerpFactor);
+
+    // Store
+    APVResourcesRW output;
+    LOAD_APV_RES(output, _Out);
+
+    EncodeAndStoreAPV(output, state0, loc);
+}

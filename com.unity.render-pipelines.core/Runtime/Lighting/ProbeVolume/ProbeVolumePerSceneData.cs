@@ -37,7 +37,7 @@ namespace UnityEngine.Experimental.Rendering
 
         internal Dictionary<string, PerStateData> states = new();
 
-        string currentState0 = null, currentState1 = null;
+        string currentState = null, transitionState = null;
 
         /// <summary>
         /// OnAfterDeserialize implementation.
@@ -142,10 +142,10 @@ namespace UnityEngine.Experimental.Rendering
         bool ResolveSharedCellData() => asset != null && asset.ResolveSharedCellData(cellSharedDataAsset, cellSupportDataAsset);
         bool ResolvePerStateCellData()
         {
-            if (currentState0 == null || !states.TryGetValue(currentState0, out var data0))
+            if (currentState == null || !states.TryGetValue(currentState, out var data0))
                 return false;
             bool result = asset.ResolvePerStateCellData(0, data0.cellDataAsset, data0.cellOptionalDataAsset);
-            if (currentState1 != null && states.TryGetValue(currentState1, out var data1))
+            if (!(transitionState == null || !states.TryGetValue(transitionState, out var data1)))
                 result = asset.ResolvePerStateCellData(1, data1.cellDataAsset, data1.cellOptionalDataAsset);
             return result;
         }
@@ -174,9 +174,8 @@ namespace UnityEngine.Experimental.Rendering
             ProbeReferenceVolume.instance.RegisterPerSceneData(this);
 
             ResolveSharedCellData();
-            var prv = ProbeReferenceVolume.instance;
-            if (prv.sceneData != null)
-                SetBakingState(prv.bakingState0, prv.bakingState1);
+            if (ProbeReferenceVolume.instance.sceneData != null)
+                UpdateBakingState();
             // otherwise baking state will be initialized in ProbeReferenceVolume.Initialize when sceneData is loaded
         }
 
@@ -189,17 +188,19 @@ namespace UnityEngine.Experimental.Rendering
         void OnDestroy()
         {
             QueueAssetRemoval();
-            currentState0 = currentState1 = null;
+            currentState = transitionState = null;
         }
 
-        internal void SetBakingState(string state0, string state1)
+        internal void UpdateBakingState()
         {
-            if (state0 == currentState0 && state1 == currentState1)
+            var state = ProbeReferenceVolume.instance.sceneData.bakingState;
+            var previousState = ProbeReferenceVolume.instance.sceneData.previousBakingState;
+            if (state == currentState && previousState == transitionState)
                 return;
 
             QueueAssetRemoval();
-            currentState0 = state0;
-            currentState1 = state1;
+            currentState = state;
+            transitionState = previousState;
             QueueAssetLoading();
         }
 

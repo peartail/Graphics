@@ -200,8 +200,6 @@ namespace UnityEngine.Experimental.Rendering
                 var profile = ProbeReferenceVolume.instance.sceneData.GetProfileForScene(scene);
                 Debug.Assert(profile != null, "Trying to bake a scene without a profile properly set.");
 
-                data.SetBakingState(ProbeReferenceVolume.instance.bakingState, null);
-
                 if (i == 0)
                 {
                     m_BakingProfile = profile;
@@ -226,6 +224,7 @@ namespace UnityEngine.Experimental.Rendering
             FindWorldBounds(out bool hasFoundInvalidSetup);
             if (hasFoundInvalidSetup) return;
 
+            ProbeReferenceVolume.instance.SetBakingState(ProbeReferenceVolume.instance.bakingState, 0.0f);
             SetBakingContext(ProbeReferenceVolume.instance.perSceneDataList);
 
             RunPlacement();

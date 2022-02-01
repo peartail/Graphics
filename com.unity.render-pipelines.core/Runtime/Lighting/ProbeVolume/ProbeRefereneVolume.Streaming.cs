@@ -10,8 +10,21 @@ namespace UnityEngine.Experimental.Rendering
         DynamicArray<CellInfo> m_TempCellToLoadList = new DynamicArray<CellInfo>();
         DynamicArray<CellInfo> m_TempCellToUnloadList = new DynamicArray<CellInfo>();
 
-        float m_LerpFactorForLoadedCells = 0.0f;
         Vector3 m_FrozenCameraPosition;
+
+        float m_TransitionTimeToLerpFactor;
+        float m_BakingStateLerpFactor = 1.0f;
+        ProbeBrickPool.BrickChunkAlloc m_MinChunk, m_MaxChunk;
+        internal float stateTransitionTime
+        {
+            set
+            {
+                m_TransitionTimeToLerpFactor = value > 0.0f ? 1.0f / value : 0.0f;
+                m_BakingStateLerpFactor = value > 0.0f ? 0.0f : 1.0f;
+                m_MinChunk = m_Pool.MaxBrickChunk;
+                m_MaxChunk = new ProbeBrickPool.BrickChunkAlloc();
+            }
+        }
 
         /// <summary>
         /// Set the number of cells that are loaded per frame when needed.
@@ -68,8 +81,23 @@ namespace UnityEngine.Experimental.Rendering
             // Cell position in cell space is the top left corner. So we need to shift the camera position by half a cell to make things comparable.
             var cameraPositionCellSpace = (m_FrozenCameraPosition - m_Transform.posWS) / MaxBrickSize() - Vector3.one * 0.5f;
 
-            if (m_LerpFactorForLoadedCells != instance.sceneData.bakingStateLerp)
-                UnloadAllCells();
+            // Compute lerping factor between states
+            float newStateLerpFactor = m_BakingStateLerpFactor;
+            if (m_BakingStateLerpFactor < 1.0f)
+            {
+                float deltaTime = Time.deltaTime;
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    deltaTime = 0.033f;
+#endif
+
+                newStateLerpFactor += deltaTime * m_TransitionTimeToLerpFactor;
+                if (newStateLerpFactor >= 1.0f)
+                {
+                    newStateLerpFactor = 1.0f;
+                    sceneData.previousBakingState = null;
+                }
+            }
 
             ComputeCellCameraDistance(cameraPositionCellSpace, m_ToBeLoadedCells);
             ComputeCellCameraDistance(cameraPositionCellSpace, m_LoadedCells);
@@ -152,6 +180,10 @@ namespace UnityEngine.Experimental.Rendering
             m_ToBeLoadedCells.AddRange(m_TempCellToUnloadList);
             m_TempCellToLoadList.Clear();
             m_TempCellToUnloadList.Clear();
+
+            if (m_BakingStateLerpFactor < 1.0f)
+                m_Pool.BlendPools(newStateLerpFactor, m_MinChunk, m_MaxChunk);
+            m_BakingStateLerpFactor = newStateLerpFactor;
         }
     }
 }

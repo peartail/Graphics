@@ -2,6 +2,8 @@
 #define __PROBEVOLUME_HLSL__
 
 #include "Packages/com.unity.render-pipelines.core/Runtime/Lighting/ProbeVolume/ShaderVariablesProbeVolumes.cs.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SphericalHarmonics.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 
 // Unpack variables
 #define _PoolDim _PoolDim_CellInMeters.xyz
@@ -79,6 +81,23 @@ struct APVSample
 #endif
 
             status = APV_SAMPLE_STATUS_DECODED;
+        }
+    }
+
+    void Encode()
+    {
+        if (status == APV_SAMPLE_STATUS_DECODED)
+        {
+            L1_R = EncodeSH(L0.r, L1_R);
+            L1_G = EncodeSH(L0.g, L1_G);
+            L1_B = EncodeSH(L0.b, L1_B);
+#ifdef PROBE_VOLUMES_L2
+            float4 outL2_C = float4(L2_C, 0.0f);
+            EncodeSH_L2(L0, L2_R, L2_G, L2_B, outL2_C);
+            L2_C = outL2_C.xyz;
+#endif
+
+            status = APV_SAMPLE_STATUS_ENCODED;
         }
     }
 };

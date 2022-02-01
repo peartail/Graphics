@@ -556,31 +556,31 @@ namespace UnityEngine.Experimental.Rendering
             /// <summary>
             /// Texture containing Spherical Harmonics L0 band data and first coefficient of L1_R.
             /// </summary>
-            public Texture3D L0_L1rx;
+            public RenderTexture L0_L1rx;
             /// <summary>
             /// Texture containing the second channel of Spherical Harmonics L1 band data and second coefficient of L1_R.
             /// </summary>
-            public Texture3D L1_G_ry;
+            public RenderTexture L1_G_ry;
             /// <summary>
             /// Texture containing the second channel of Spherical Harmonics L1 band data and third coefficient of L1_R.
             /// </summary>
-            public Texture3D L1_B_rz;
+            public RenderTexture L1_B_rz;
             /// <summary>
             /// Texture containing the first coefficient of Spherical Harmonics L2 band data and first channel of the fifth.
             /// </summary>
-            public Texture3D L2_0;
+            public RenderTexture L2_0;
             /// <summary>
             /// Texture containing the second coefficient of Spherical Harmonics L2 band data and second channel of the fifth.
             /// </summary>
-            public Texture3D L2_1;
+            public RenderTexture L2_1;
             /// <summary>
             /// Texture containing the third coefficient of Spherical Harmonics L2 band data and third channel of the fifth.
             /// </summary>
-            public Texture3D L2_2;
+            public RenderTexture L2_2;
             /// <summary>
             /// Texture containing the fourth coefficient of Spherical Harmonics L2 band data.
             /// </summary>
-            public Texture3D L2_3;
+            public RenderTexture L2_3;
 
             /// <summary>
             /// Texture containing packed validity binary data for the neighbourhood of each probe. Only used when L1. Otherwise this info is stored
@@ -672,40 +672,19 @@ namespace UnityEngine.Experimental.Rendering
 
         internal bool clearAssetsOnVolumeClear = false;
 
-        /// <summary>Delegate for baking state change.</summary>
-        /// <param name="newState">The new baking state.</param>
-        public delegate void BakingStateChangedDelegate(string newState0, string newState1, float lerpFactor);
-        /// <summary>Delegate called when the baking state is changed. </summary>
-        public BakingStateChangedDelegate onBakingStateChanged;
+        /// <summary>The current baking state.</summary>
+        public string bakingState
+        {
+            get => sceneData.bakingState;
+            set => SetBakingState(value, 0.0f);
+        }
+        /// <summary>The current baking state. 1 means state is fully loaded</summary>
+        public float bakingStateLerp => m_BakingStateLerpFactor;
 
-        /// <summary>Used for baking, you can only bake to state 0.</summary>
-        internal string bakingState
+        /// <summary>Set the baking state.</summary>
+        public void SetBakingState(string state, float transitionTime)
         {
-            get => bakingState0;
-            set => bakingState0 = value;
-        }
-        /// <summary>The currently selected baking state 0.</summary>
-        public string bakingState0
-        {
-            get => sceneData.bakingState0;
-            set => SetBakingState(value, null, 0.0f);
-        }
-        /// <summary>The currently selected baking state 1.</summary>
-        public string bakingState1
-        {
-            get => sceneData.bakingState1;
-            set => SetBakingState(null, value, 1.0f);
-        }
-        /// <summary>The lerping factor between baking states.</summary>
-        public float bakingStateLerp
-        {
-            get => sceneData.bakingStateLerp;
-            set => SetBakingState(bakingState0, bakingState1, value);
-        }
-
-        public void SetBakingState(string state0, string state1, float lerp)
-        {
-            sceneData.SetBakingState(state0, state1, lerp);
+            sceneData.SetBakingState(state, transitionTime);
 #if UNITY_EDITOR
             EditorUtility.SetDirty(sceneData.parentAsset);
 #endif
@@ -779,8 +758,8 @@ namespace UnityEngine.Experimental.Rendering
             m_EnabledBySRP = true;
 
             if (sceneData != null)
-                foreach (var data in ProbeReferenceVolume.instance.perSceneDataList)
-                    data.SetBakingState(sceneData.bakingState0, null);
+                foreach (var data in instance.perSceneDataList)
+                    data.UpdateBakingState();
         }
 
         /// <summary>
@@ -1231,7 +1210,7 @@ namespace UnityEngine.Experimental.Rendering
                 m_Index = new ProbeBrickIndex(memoryBudget);
                 m_CellIndices = new ProbeCellIndices(minCellPosition, maxCellPosition, (int)Mathf.Pow(3, m_MaxSubdivision - 1));
 
-                m_TemporaryDataLocation = ProbeBrickPool.CreateDataLocation(kTemporaryDataLocChunkCount * ProbeBrickPool.GetChunkSizeInProbeCount(), compressed: false, shBands, "APV_Intermediate", out m_TemporaryDataLocationMemCost);
+                m_TemporaryDataLocation = ProbeBrickPool.CreateDataLocation(kTemporaryDataLocChunkCount * ProbeBrickPool.GetChunkSizeInProbeCount(), compressed: false, shBands, "APV_Intermediate", false, out m_TemporaryDataLocationMemCost);
 
                 // initialize offsets
                 m_PositionOffsets[0] = 0.0f;
@@ -1330,16 +1309,15 @@ namespace UnityEngine.Experimental.Rendering
             if (!m_Pool.Allocate(brickChunksCount, cellInfo.chunkList))
                 return false;
 
+            var targetPool = m_BakingStateLerpFactor != 1.0f ? ProbeBrickPool.TargetPool.State0Pool : ProbeBrickPool.TargetPool.RuntimePool;
+
             // In order not to pre-allocate for the worse case, we update the texture by smaller chunks with a preallocated DataLoc
             int chunkIndex = 0;
             while (chunkIndex < cellInfo.chunkList.Count)
             {
-                int chunkToProcess = Math.Min(kTemporaryDataLocChunkCount, cellInfo.chunkList.Count - chunkIndex);
-                ProbeBrickPool.FillDataLocation(ref m_TemporaryDataLocation, cell.shBands,
-                    cell.state0.shL0L1Data, cell.state0.shL2Data, cell.validity,
-                    chunkIndex * ProbeBrickPool.GetChunkSizeInProbeCount(),
-                    chunkToProcess * ProbeBrickPool.GetChunkSizeInProbeCount(),
-                    m_SHBands);
+                // Register chunk for state blending
+                m_MinChunk.Min(cellInfo.chunkList[chunkIndex]);
+                m_MaxChunk.Max(cellInfo.chunkList[chunkIndex]);
 
                 // copy chunks into pool
                 m_TmpSrcChunks.Clear();
@@ -1349,6 +1327,7 @@ namespace UnityEngine.Experimental.Rendering
                 c.z = 0;
 
                 // currently this code assumes that the texture width is a multiple of the allocation chunk size
+                int chunkToProcess = Math.Min(kTemporaryDataLocChunkCount, cellInfo.chunkList.Count - chunkIndex);
                 for (int j = 0; j < chunkToProcess; j++)
                 {
                     m_TmpSrcChunks.Add(c);
@@ -1365,8 +1344,26 @@ namespace UnityEngine.Experimental.Rendering
                     }
                 }
 
+                ProbeBrickPool.FillDataLocation(ref m_TemporaryDataLocation, cell.shBands,
+                    cell.state0.shL0L1Data, cell.state0.shL2Data, cell.validity,
+                    chunkIndex * ProbeBrickPool.GetChunkSizeInProbeCount(),
+                    chunkToProcess * ProbeBrickPool.GetChunkSizeInProbeCount(),
+                    m_SHBands);
+
                 // Update pool textures with incoming SH data and ignore any potential frame latency related issues for now.
-                m_Pool.Update(m_TemporaryDataLocation, m_TmpSrcChunks, cellInfo.chunkList, chunkIndex, m_SHBands);
+                m_Pool.Update(m_TemporaryDataLocation, m_TmpSrcChunks, cellInfo.chunkList, chunkIndex, m_SHBands, targetPool);
+
+                if (m_BakingStateLerpFactor != 1.0f)
+                {
+                    // TODO: this will reload and upload cell validity, but it's not needed (it's shared between states)
+                    ProbeBrickPool.FillDataLocation(ref m_TemporaryDataLocation, cell.shBands,
+                        cell.state1.shL0L1Data, cell.state1.shL2Data, cell.validity,
+                        chunkIndex * ProbeBrickPool.GetChunkSizeInProbeCount(),
+                        chunkToProcess * ProbeBrickPool.GetChunkSizeInProbeCount(),
+                        m_SHBands);
+
+                    m_Pool.Update(m_TemporaryDataLocation, m_TmpSrcChunks, cellInfo.chunkList, chunkIndex, m_SHBands, ProbeBrickPool.TargetPool.State1Pool);
+                }
 
                 chunkIndex += kTemporaryDataLocChunkCount;
             }
