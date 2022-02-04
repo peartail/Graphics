@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Added support for user-selected upscaling filters. Current options are automatic, bilinear, and nearest-neighbor.
 - Added support for FidelityFX Super Resolution 1.0 upscaling filter.
 - Added Downscale and Max Iterations options for Bloom
+- Added export of shader variants that are being stripped under `Temp/shader-stripping.json` if the `Export Shader Variants` option is enabled on the Global Settings.
 
 ### Changed
 - Re-added the menu button to be able to convert selected materials.

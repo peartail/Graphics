@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Add probe volume influence weight parameter
 - Added support for multiple Baking States to Prove Volumes.
 - Hidding Volume Components not available for the current pipeline on the Volume Profile Inspector.
+- New class to report shader variants stripping information for SRP's
 
 ### Changed
 - Volume Component editor are now specified by `CustomEditorAttribute` instead of `VolumeComponentEditorAttribute`.
