@@ -160,7 +160,7 @@ namespace UnityEditor.Rendering
         public void OnPostprocessBuild(BuildReport report)
         {
             ShaderVariantLogLevel logStrippedVariants = ShaderVariantLogLevel.AllShaders;
-            bool exportStrippedVariants = false;
+            bool exportStrippedVariants = true;
 
             if (RenderPipelineManager.currentPipeline != null && RenderPipelineManager.currentPipeline.defaultSettings is IShaderVariantSettings shaderVariantSettings)
             {
