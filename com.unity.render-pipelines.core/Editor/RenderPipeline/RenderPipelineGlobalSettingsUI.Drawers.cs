@@ -22,7 +22,8 @@ namespace UnityEditor.Rendering
             using (new EditorGUI.IndentLevelScope())
             {
                 EditorGUILayout.PropertyField(serialized.shaderVariantLogLevel, Styles.shaderVariantLogLevelLabel);
-                EditorGUILayout.PropertyField(serialized.exportShaderVariants, Styles.exportShaderVariantsLabel);
+                if (Unsupported.IsDeveloperMode())
+                    EditorGUILayout.PropertyField(serialized.exportShaderVariants, Styles.exportShaderVariantsLabel);
                 additionalShaderStrippingSettings?.Draw(serialized, owner);
             }
             EditorGUILayout.Space();
