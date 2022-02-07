@@ -139,6 +139,7 @@ namespace UnityEditor.Rendering
     /// </summary>
     class ShaderStrippingReportScope : IPostprocessBuildWithReport, IPreprocessBuildWithReport
     {
+        internal static bool s_DefaultExport = false;
         /// <summary>
         /// Callback order
         /// </summary>
@@ -159,8 +160,8 @@ namespace UnityEditor.Rendering
         /// <param name="report">Unused <see cref="BuildReport"/></param>
         public void OnPostprocessBuild(BuildReport report)
         {
-            ShaderVariantLogLevel logStrippedVariants = ShaderVariantLogLevel.AllShaders;
-            bool exportStrippedVariants = true;
+            ShaderVariantLogLevel logStrippedVariants = ShaderVariantLogLevel.Disabled;
+            bool exportStrippedVariants = s_DefaultExport;
 
             if (RenderPipelineManager.currentPipeline != null && RenderPipelineManager.currentPipeline.defaultSettings is IShaderVariantSettings shaderVariantSettings)
             {
