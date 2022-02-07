@@ -15,24 +15,9 @@ namespace UnityEditor.Rendering
     [Serializable]
     class VariantCounter
     {
-        /// <summary>
-        /// Input variants
-        /// </summary>
         public uint inputVariants;
-
-        /// <summary>
-        /// Output variants
-        /// </summary>
         public uint outputVariants;
-
-        /// <summary>
-        /// Obtains the string information of the variants accounted
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return $"Total={inputVariants}/{outputVariants}({outputVariants / (float)inputVariants * 100f:0.00}%)";
-        }
+        public override string ToString() => $"Total={inputVariants}/{outputVariants}({outputVariants / (float)inputVariants * 100f:0.00}%)";
     }
 
     [Serializable]
@@ -40,10 +25,7 @@ namespace UnityEditor.Rendering
     {
         public string variantName;
         public double stripTimeMs;
-        public override string ToString()
-        {
-            return $"{variantName} - {base.ToString()} - Time={stripTimeMs}ms";
-        }
+        public override string ToString() => $"{variantName} - {base.ToString()} - Time={stripTimeMs}ms";
     }
 
     [Serializable]
@@ -67,44 +49,41 @@ namespace UnityEditor.Rendering
             list.Add(variant);
         }
 
-        public override string ToString()
-        {
-            return $"{name} - {base.ToString()}";
-        }
+        public override string ToString() => $"{name} - {base.ToString()}";
 
         public void Log(ShaderVariantLogLevel logLevel)
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"{this}");
+            IEnumerable<ShaderVariantInfo> variantsToLog = null;
             switch (logLevel)
             {
                 case ShaderVariantLogLevel.AllShaders:
                 {
-                    foreach (var info in m_VariantsByPipeline)
-                    {
-                        foreach (var variant in info.Value)
-                        {
-                            sb.AppendLine($"- {variant}");
-                        }
-                    }
-
+                    variantsToLog = m_VariantsByPipeline.SelectMany(i => i.Value);
                     break;
                 }
                 case ShaderVariantLogLevel.OnlySRPShaders:
                 {
-                    foreach (var info in m_VariantsByPipeline)
-                    {
-                        if (string.IsNullOrEmpty(info.Key)) continue;
-                        foreach (var variant in info.Value)
-                        {
-                            sb.AppendLine($"- {variant}");
-                        }
-                    }
-                    break;
+                    variantsToLog = m_VariantsByPipeline.
+                        Where(i => !string.IsNullOrEmpty(i.Key))
+                        .SelectMany(i => i.Value);
+                        break;
                 }
             }
 
-            Debug.Log(sb.ToString());
+            if (variantsToLog != null && variantsToLog.Any())
+            {
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine($"{this}");
+                foreach (var info in m_VariantsByPipeline)
+                {
+                    foreach (var variant in info.Value)
+                    {
+                        sb.AppendLine($"- {variant}");
+                    }
+                }
+
+                Debug.Log(sb.ToString());
+            }
         }
 
         #region Serialization & Export
@@ -163,14 +142,17 @@ namespace UnityEditor.Rendering
             ShaderVariantLogLevel logStrippedVariants = ShaderVariantLogLevel.Disabled;
             bool exportStrippedVariants = s_DefaultExport;
 
+            // Check the current pipeline and check the shader variant settings
             if (RenderPipelineManager.currentPipeline != null && RenderPipelineManager.currentPipeline.defaultSettings is IShaderVariantSettings shaderVariantSettings)
             {
                 logStrippedVariants = shaderVariantSettings.shaderVariantLogLevel;
                 exportStrippedVariants = shaderVariantSettings.exportShaderVariants;
             }
 
+            // Dump everything into console and/or file
             ShaderStrippingReport.instance.Dump(logStrippedVariants, exportStrippedVariants);
 
+            // Release resources
             ShaderStrippingReport.instance = null;
         }
     }
