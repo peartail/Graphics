@@ -66,7 +66,7 @@ namespace UnityEditor.Rendering
                     variantsToLog = m_VariantsByPipeline.
                         Where(i => !string.IsNullOrEmpty(i.Key))
                         .SelectMany(i => i.Value);
-                        break;
+                    break;
                 }
             }
 
@@ -74,12 +74,9 @@ namespace UnityEditor.Rendering
             {
                 StringBuilder sb = new StringBuilder();
                 sb.AppendLine($"{this}");
-                foreach (var info in m_VariantsByPipeline)
+                foreach (var info in variantsToLog)
                 {
-                    foreach (var variant in info.Value)
-                    {
-                        sb.AppendLine($"- {variant}");
-                    }
+                    sb.AppendLine($"- {variant}");
                 }
 
                 Debug.Log(sb.ToString());
