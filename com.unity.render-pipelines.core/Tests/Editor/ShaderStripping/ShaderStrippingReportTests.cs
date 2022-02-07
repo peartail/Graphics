@@ -4,7 +4,10 @@ using UnityEditor.Build;
 using NUnit.Framework;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using UnityEngine;
+using System.Text;
+using System.Reflection;
 
 namespace UnityEditor.Rendering.Tests
 {
@@ -17,7 +20,15 @@ namespace UnityEditor.Rendering.Tests
 
             public BuildReportTestScope()
             {
-                var instance = Activator.CreateInstance(Type.GetType("UnityEditor.Rendering.ShaderStrippingReportScope, Unity.RenderPipelines.Core.Editor"));
+                var type = Type.GetType(
+                    "UnityEditor.Rendering.ShaderStrippingReportScope, Unity.RenderPipelines.Core.Editor");
+
+                // We allow export for test purpouses
+                var field = type.GetField("s_DefaultExport", BindingFlags.NonPublic | BindingFlags.Static);
+                field.SetValue(null, true);
+
+                // Obtain the callbacks to init and dispose
+                var instance = Activator.CreateInstance(type);
                 m_PostProcessReport = instance as IPostprocessBuildWithReport;
                 m_PreProcessReport = instance as IPreprocessBuildWithReport;
                 m_PreProcessReport.OnPreprocessBuild(default);
@@ -28,7 +39,6 @@ namespace UnityEditor.Rendering.Tests
                 m_PostProcessReport.OnPostprocessBuild(default);
             }
         }
-
 
         [Test]
         public void CheckReportIsCorrect()
@@ -45,6 +55,11 @@ namespace UnityEditor.Rendering.Tests
                     }
                 }
             }
+
+            var loggedStrippedResult = File.ReadAllText("Temp/shader-stripping.json");
+            var loggedStrippedExpectedResult = File.ReadAllText(Path.GetFullPath("Packages/com.unity.render-pipelines.core/Tests/Editor/ShaderStripping/shader-stripping-result.json"));
+
+            Assert.AreEqual(loggedStrippedExpectedResult, loggedStrippedResult);
         }
     }
 }
