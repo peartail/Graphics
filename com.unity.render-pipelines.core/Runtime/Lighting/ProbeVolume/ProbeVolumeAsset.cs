@@ -24,7 +24,6 @@ namespace UnityEngine.Experimental.Rendering
 
         [SerializeField] protected internal int m_Version = (int)AssetVersion.Current;
 
-        //internal string state0 = null, state1 = null;
         [SerializeField] internal ProbeReferenceVolume.Cell[] cells;
         [SerializeField] internal CellCounts[] cellCounts;
         [SerializeField] internal CellCounts totalCellCounts;
@@ -35,7 +34,7 @@ namespace UnityEngine.Experimental.Rendering
 
         [SerializeField] internal ProbeVolumeSHBands bands;
 
-        [SerializeField] internal string m_AssetFullPath = "UNINITIALIZED!";
+        [SerializeField] string m_AssetFullPath = "UNINITIALIZED!";
 
         // Profile info
         [SerializeField] internal int cellSizeInBricks;

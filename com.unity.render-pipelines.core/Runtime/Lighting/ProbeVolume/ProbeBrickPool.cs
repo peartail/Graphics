@@ -168,8 +168,11 @@ namespace UnityEngine.Experimental.Rendering
 
             // Allocate two pools for state blending. They contain states data and interpolated result is written in m_Pool
             // TODO: they shouldn't allocate a validity texture because no blending is needed on validity
-            m_State0Pool = CreateDataLocation(width * height * depth, false, shBands, "APV_0", false, out _);
-            m_State1Pool = CreateDataLocation(width * height * depth, false, shBands, "APV_1", false, out _);
+            m_State0Pool = CreateDataLocation(width * height * depth, false, shBands, "APV_0", false, out estimatedCost);
+            estimatedVMemCost += estimatedCost;
+
+            m_State1Pool = CreateDataLocation(width * height * depth, false, shBands, "APV_1", false, out estimatedCost);
+            estimatedVMemCost += estimatedCost;
 
             m_AvailableChunkCount = (width / (kProbePoolChunkSize * kBrickProbeCountPerDim)) * (height / kBrickProbeCountPerDim) * (depth / kBrickProbeCountPerDim);
 
@@ -538,7 +541,7 @@ namespace UnityEngine.Experimental.Rendering
             return new Vector3Int(i & 1, (i >> 1) & 1, (i >> 2) & 1);
         }
 
-        internal static unsafe void LoadCell(ref DataLocation loc, ProbeVolumeSHBands srcBands, NativeArray<float> shL0L1Data, NativeArray<float> shL2Data, NativeArray<float> validity, int startIndex, int count, ProbeVolumeSHBands dstBands)
+        internal static unsafe void FillDataLocation(ref DataLocation loc, ProbeVolumeSHBands srcBands, NativeArray<float> shL0L1Data, NativeArray<float> shL2Data, NativeArray<float> validity, int startIndex, int count, ProbeVolumeSHBands dstBands)
         {
             // NOTE: The SH data arrays passed to this method should be pre-swizzled to the format expected by shader code.
             // TODO: The next step here would be to store de-interleaved, pre-quantized brick data that can be memcopied directly into texture pixeldata
@@ -659,11 +662,6 @@ namespace UnityEngine.Experimental.Rendering
                     }
                 }
             }
-        }
-
-        internal static unsafe void FillDataLocation(ref DataLocation loc, ProbeVolumeSHBands srcBands, NativeArray<float> shL0L1Data, NativeArray<float> shL2Data, NativeArray<float> validity, int startIndex, int count, ProbeVolumeSHBands dstBands)
-        {
-            LoadCell(ref loc, srcBands, shL0L1Data, shL2Data, validity, startIndex, count, dstBands);
 
             (loc.TexL0_L1rx as Texture3D).SetPixels(s_L0L1Rx_locData);
             (loc.TexL0_L1rx as Texture3D).Apply(false);

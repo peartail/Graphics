@@ -682,10 +682,12 @@ namespace UnityEngine.Experimental.Rendering
             get => sceneData.bakingState;
             set => SetBakingState(value, 0.0f);
         }
-        /// <summary>The current baking state. 1 means state is fully loaded</summary>
+        /// <summary>The current baking state factor when transitioning from another state. 1 means state is fully active.</summary>
         public float bakingStateLerp => m_BakingStateLerpFactor;
 
         /// <summary>Set the baking state.</summary>
+        /// <param name="state">The new baking state.</param>
+        /// <param name="transitionTime">The time in seconds to smoothly transition from the current state to the new state.</param>
         public void SetBakingState(string state, float transitionTime)
         {
             sceneData.SetBakingState(state, transitionTime);
@@ -885,7 +887,7 @@ namespace UnityEngine.Experimental.Rendering
                 cellInfo = m_CellInfoPool.Get();
                 cellInfo.cell = cell;
                 cellInfo.flatIdxInCellIndices = m_CellIndices.GetFlatIdxForCell(cell.position);
-                cellInfo.sourceAssetInstanceID = assetInstanceID; // TODO: should be 0 and 1 ?
+                cellInfo.sourceAssetInstanceID = assetInstanceID;
                 cellInfo.referenceCount = 1;
                 cells[cell.index] = cellInfo;
 
