@@ -146,6 +146,12 @@ namespace UnityEngine.Experimental.Rendering
         static readonly int _Out_L2_2 = Shader.PropertyToID("_Out_L2_2");
         static readonly int _Out_L2_3 = Shader.PropertyToID("_Out_L2_3");
 
+        internal static void Initialize(in ProbeVolumeSystemParameters parameters)
+        {
+            stateBlendShader = parameters.stateBlendShader;
+            stateBlendKernel = stateBlendShader.FindKernel("BlendStates");
+        }
+
         internal ProbeBrickPool(ProbeVolumeTextureMemoryBudget memoryBudget, ProbeVolumeSHBands shBands)
         {
             Profiler.BeginSample("Create ProbeBrickPool");
@@ -166,10 +172,6 @@ namespace UnityEngine.Experimental.Rendering
             m_State1Pool = CreateDataLocation(width * height * depth, false, shBands, "APV_1", false, out _);
 
             m_AvailableChunkCount = (width / (kProbePoolChunkSize * kBrickProbeCountPerDim)) * (height / kBrickProbeCountPerDim) * (depth / kBrickProbeCountPerDim);
-
-            // TODO: will not compile in player
-            stateBlendShader = UnityEditor.AssetDatabase.LoadAssetAtPath<ComputeShader>("Packages/com.unity.render-pipelines.core/Runtime/Lighting/ProbeVolume/ProbeVolumeBlendStates.compute");
-            stateBlendKernel = stateBlendShader.FindKernel("BlendStates");
 
             Profiler.EndSample();
         }

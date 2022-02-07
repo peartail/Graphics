@@ -289,6 +289,10 @@ namespace UnityEngine.Experimental.Rendering
         /// </summary>
         public Shader offsetDebugShader;
         /// <summary>
+        /// The compute shader used to interpolate between two baking states.
+        /// </summary>
+        public ComputeShader stateBlendShader;
+        /// <summary>
         /// The <see cref="ProbeVolumeSceneData"/>
         /// </summary>
         public ProbeVolumeSceneData sceneData;
@@ -744,6 +748,7 @@ namespace UnityEngine.Experimental.Rendering
             m_SHBands = parameters.shBands;
             m_ProbeVolumesWeight = 1f;
             InitializeDebug(parameters);
+            ProbeBrickPool.Initialize(parameters);
             InitProbeReferenceVolume(m_MemoryBudget, m_SHBands);
             m_IsInitialized = true;
             m_NeedsIndexRebuild = true;
