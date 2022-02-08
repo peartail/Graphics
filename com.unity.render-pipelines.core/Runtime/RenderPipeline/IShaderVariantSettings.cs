@@ -5,7 +5,7 @@ namespace UnityEngine.Rendering
     /// </summary>
     public enum ShaderVariantLogLevel
     {
-        // <summary>Disable all log for Shader Variant</summary>
+        /// <summary>Disable all log for Shader Variant</summary>
         [Tooltip("No shader variants are logged")]
         Disabled,
         /// <summary>Only logs Shaders with a Subshader containing the tag RenderPipeline</summary>
