@@ -9,7 +9,7 @@ namespace UnityEngine.Rendering
         [Tooltip("No shader variants are logged")]
         Disabled,
         /// <summary>Only logs Shaders with a Subshader containing the tag RenderPipeline</summary>
-        [Tooltip("Only shaders that are compatible with SRPs (ie: URP, HDRP) are logged")]
+        [Tooltip("Only shaders that are compatible with SRPs (e.g., URP, HDRP) are logged")]
         OnlySRPShaders,
         /// <summary>No filter is applied to the logging of shader variants</summary>
         [Tooltip("All shader variants are logged")]
