@@ -147,6 +147,9 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // Waterline / Underwater
             m_WaterCameraHeightBuffer = new ComputeBuffer(1 * 4, sizeof(float));
+
+            // Make sure the CPU simulation stuff is properly initialized
+            InitializeCPUWaterSimulation();
         }
 
         void ReleaseWaterSystem()
@@ -192,6 +195,9 @@ namespace UnityEngine.Rendering.HighDefinition
             RTHandles.Release(m_FFTRowPassRs);
             RTHandles.Release(m_HtIs);
             RTHandles.Release(m_HtRs);
+
+            // Make sure the CPU simulation stuff is properly freed
+            ReleaseCPUWaterSimulation();
         }
 
         void InitializeInstancingData()
@@ -222,8 +228,11 @@ namespace UnityEngine.Rendering.HighDefinition
             // Resolution at which the simulation is evaluated
             cb._BandResolution = (uint)m_WaterBandResolution;
 
-            // Maximal possible wave height of the current setup
-            ComputeMaximumWaveHeight(currentWater.amplitude, currentWater.simulation.patchWindSpeed.x, currentWater.highBandCount, out cb._WaveAmplitude, out cb._MaxWaveHeight);
+            // Amplitude multiplier (per band)
+            cb._WaveAmplitude = currentWater.simulation.waveAmplitude;
+
+            // Max wave height for the system
+            cb._MaxWaveHeight = currentWater.simulation.maxWaveHeight;
 
             // Choppiness factor
             float actualChoppiness = currentWater.choppiness * k_WaterMaxChoppinessValue;
@@ -362,6 +371,9 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // Make sure the mip-maps are generated
             currentWater.simulation.additionalDataBuffer.rt.GenerateMips();
+
+            // Here we replicate the ocean simulation on the CPU (if requested)
+            UpdateCPUWaterSimulation(currentWater, !validResources, m_ShaderVariablesWater);
         }
 
         void EvaluateWaterCaustics(CommandBuffer cmd, WaterSurface currentWater)

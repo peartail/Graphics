@@ -1,3 +1,5 @@
+using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine.Experimental.Rendering;
 using UnityEngine.Experimental.Rendering.RenderGraphModule;
 
@@ -66,6 +68,15 @@ namespace UnityEngine.Rendering.HighDefinition
         // Value that defines the wind speed that is applied to each patch (up to 4)
         public Vector4 patchWindSpeed = Vector4.zero;
 
+        // Wave amplitude multiplier
+        public Vector4 waveAmplitude = Vector4.zero;
+        // Maximum wave height of the simulation
+        public float maxWaveHeight = 0.0f;
+
+        // CPU simulation resources
+        public NativeArray<float2> h0BufferCPU;
+        public NativeArray<float4> displacementBufferCPU;
+
         // Function that allocates the resources and keep track of the resolution and number of bands
         public void AllocateSmmulationResources(int simulationRes, int nbBands)
         {
@@ -78,6 +89,10 @@ namespace UnityEngine.Rendering.HighDefinition
             phillipsSpectrumBuffer = RTHandles.Alloc(simulationResolution, simulationResolution, numBands, dimension: TextureDimension.Tex2DArray, colorFormat: GraphicsFormat.R16G16_SFloat, enableRandomWrite: true, wrapMode: TextureWrapMode.Repeat);
             displacementBuffer = RTHandles.Alloc(simulationResolution, simulationResolution, numBands, dimension: TextureDimension.Tex2DArray, colorFormat: GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite: true, wrapMode: TextureWrapMode.Repeat);
             additionalDataBuffer = RTHandles.Alloc(simulationResolution, simulationResolution, numBands, dimension: TextureDimension.Tex2DArray, colorFormat: GraphicsFormat.R16G16B16A16_SFloat, enableRandomWrite: true, wrapMode: TextureWrapMode.Repeat, useMipMap: true, autoGenerateMips: false);
+
+            // Allocate the CPU buffers
+            h0BufferCPU = new NativeArray<float2>(simulationResolution * simulationResolution * numBands, Allocator.Persistent);
+            displacementBufferCPU = new NativeArray<float4>(simulationResolution * simulationResolution * numBands, Allocator.Persistent);
         }
 
         // Function that validates the resources (size and if allocated)
@@ -146,6 +161,10 @@ namespace UnityEngine.Rendering.HighDefinition
                 RTHandles.Release(causticsBuffer);
                 causticsBuffer = null;
             }
+
+            // Get rid of the CPU buffers
+            h0BufferCPU.Dispose();
+            displacementBufferCPU.Dispose();
 
             // Reset the resolution data
             simulationResolution = 0;

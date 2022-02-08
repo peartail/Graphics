@@ -484,6 +484,8 @@ namespace UnityEngine.Rendering.HighDefinition
             simulation.windAffectCurrent = windAffectCurrent;
             simulation.patchSizes = HDRenderPipeline.ComputeBandPatchSizes(waterMaxPatchSize);
             simulation.patchWindSpeed = HDRenderPipeline.ComputeWindSpeeds(simulation.windSpeed, simulation.patchSizes);
+            HDRenderPipeline.ComputeMaximumWaveHeight(amplitude, simulation.patchWindSpeed.x, highBandCount, out simulation.waveAmplitude, out simulation.maxWaveHeight);
+
         }
 
         void OnDestroy()
