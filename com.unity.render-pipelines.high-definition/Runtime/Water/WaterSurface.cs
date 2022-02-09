@@ -447,10 +447,10 @@ namespace UnityEngine.Rendering.HighDefinition
                 needUpdate = true;
             }
 
-            // The simulation data are not valid, we need to re-evaluate the spectrum
-            if (needUpdate)
-                UpdateSimulationData();
+            // Re-evaluate the simulation data
+            UpdateSimulationData();
 
+            // Flag that definees if the spectrum needs to regenerated
             return !needUpdate;
         }
         private void Start()

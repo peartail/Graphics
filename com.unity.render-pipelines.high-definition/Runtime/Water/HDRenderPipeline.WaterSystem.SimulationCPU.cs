@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using Unity.Mathematics;
+using static Unity.Mathematics.math;
 
 namespace UnityEngine.Rendering.HighDefinition
 {
@@ -519,20 +520,6 @@ namespace UnityEngine.Rendering.HighDefinition
             return displacementBuffer[repeatCoord.x + repeatCoord.y * simResolution + bandOffset];
         }
 
-        static float4 BilinearInterpolation(float4 q11, float4 q12, float4 q21, float4 q22,
-                                            float x1, float x2,
-                                            float y1, float y2,
-                                            float x, float y)
-        {
-            float x2x1, y2y1, x2x, y2y, yy1, xx1;
-            x2x1 = x2 - x1;
-            y2y1 = y2 - y1;
-            x2x = x2 - x;
-            y2y = y2 - y;
-            yy1 = y - y1;
-            xx1 = x - x1;
-            return 1.0f / (x2x1 * y2y1) * (q11 * x2x * y2y + q21 * xx1 * y2y + q12 * x2x * yy1 + q22 * xx1 * yy1);
-        }
 
         static int2 FloorCoordinate(float2 coord)
         {
@@ -543,49 +530,37 @@ namespace UnityEngine.Rendering.HighDefinition
         {
             // Convert the position from uv to floating pixel coords (for the bilinear interpolation)
             float2 tapCoord = (uvCoord * simResolution);
+            int2 currentTapCoord = FloorCoordinate(tapCoord);
 
-            // Evaluate the decimal part of both dimensions
-            float decimalX = tapCoord.x - Mathf.Floor(tapCoord.x);
-            float decimalY = tapCoord.y - Mathf.Floor(tapCoord.y);
-
-            // Compute the tap offset based on the decimal parts
-            float2 offsetX = decimalX > 0.5 ? new float2(1, 0) : new float2(-1, 0);
-            float2 offsetY = decimalY > 0.5 ? new float2(0, 1) : new float2(0, -1);
-
-            // Read the 4 pixels we will be using
-            int2 c0 = FloorCoordinate(tapCoord);
-            int2 c1 = FloorCoordinate(tapCoord + offsetX);
-            int2 c2 = FloorCoordinate(tapCoord + offsetY);
-            int2 c3 = FloorCoordinate(tapCoord + offsetX + offsetY);
-            float4 p0 = LoadDisplacementData(displacementBuffer, c0, bandIndex, simResolution);
-            float4 p1 = LoadDisplacementData(displacementBuffer, c1, bandIndex, simResolution);
-            float4 p2 = LoadDisplacementData(displacementBuffer, c2, bandIndex, simResolution);
-            float4 p3 = LoadDisplacementData(displacementBuffer, c3, bandIndex, simResolution);
-
-            if (decimalX <= 0.5)
+#if false
+            float weightSum = 0.0f;
+            float4 v = float4.zero;
+            for (int y = -1; y <= 1; ++y)
             {
-                float4 tmp = p1;
-                p1 = p0;
-                p0 = tmp;
-
-                tmp = p2;
-                p2 = p3;
-                p3 = tmp;
-            }
-
-            if (decimalY <= 0.5)
-            {
-                float4 tmp = p2;
-                p2 = p0;
-                p0 = tmp;
-
-                tmp = p1;
-                p1 = p3;
-                p3 = tmp;
+                for (int x = -1; x <= 1; ++x)
+                {
+                    float2 dist = tapCoord - (currentTapCoord + new float2(0.5f, 0.5f));
+                    float r = Mathf.Sqrt(dist.x * dist.x + dist.y * dist.y);
+                    float s = 0.5f;
+                    float weight = (Mathf.Exp(-(r * r) / s)) / (Mathf.PI * s);
+                    v += LoadDisplacementData(displacementBuffer, currentTapCoord, bandIndex, simResolution) * weight;
+                    weightSum += weight;
+                }
             }
 
             // Do the bilinear interpolation and leave
-            return BilinearInterpolation(p0, p1, p2, p3, 0, 1, 0, 1, decimalX, decimalY);
+            return v / weightSum;
+#else
+            float4 p0 = LoadDisplacementData(displacementBuffer, currentTapCoord, bandIndex, simResolution);
+            float4 p1 = LoadDisplacementData(displacementBuffer, currentTapCoord + new int2(1, 0), bandIndex, simResolution);
+            float4 p2 = LoadDisplacementData(displacementBuffer, currentTapCoord + new int2(0, 1), bandIndex, simResolution);
+            float4 p3 = LoadDisplacementData(displacementBuffer, currentTapCoord + new int2(1, 1), bandIndex, simResolution);
+
+            float2 fract = tapCoord - currentTapCoord;
+            float4 i0 = lerp(p0, p1, fract.x);
+            float4 i1 = lerp(p2, p3, fract.x);
+            return lerp(i0, i1, fract.y);
+#endif
         }
 
         internal static float3 EvaluateWaterDisplacement(WaterSurface waterSurface, Vector3 positionAWS, float4 bandsMultiplier, float4 waveAmplitude)
@@ -597,7 +572,6 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // Compute the displacement normalization factor
             float4 patchSizes = waterSurface.simulation.patchSizes / waterSurface.simulation.patchSizes[0];
-            float4 patchSizes2 = patchSizes * patchSizes;
             float4 displacementNormalization = EvaluateDisplacementNormalization(waterSurface, waveAmplitude);
 
             // Accumulate the displacement from the various layers
@@ -609,7 +583,7 @@ namespace UnityEngine.Rendering.HighDefinition
             totalDisplacement += rawDisplacement;
 
             // Second band
-            rawDisplacement = SampleDisplacementBilinear(waterSurface.simulation.displacementBufferCPU, uvBand0, 1, waterSurface.simulation.simulationResolution).xyz * displacementNormalization.y * bandsMultiplier.y;
+            rawDisplacement = SampleDisplacementBilinear(waterSurface.simulation.displacementBufferCPU, uvBand1, 1, waterSurface.simulation.simulationResolution).xyz * displacementNormalization.y * bandsMultiplier.y;
             totalDisplacement += rawDisplacement;
 
             // We only apply the choppiness tot he first two bands, doesn't behave very good past those
@@ -639,7 +613,7 @@ namespace UnityEngine.Rendering.HighDefinition
             data.displacedPoint = currentLocation + data.currentDisplacement;
 
             // Evaluate the distance to the reference point
-            data.offset = data.displacedPoint.xz - referencePosition.xz;
+            data.offset = referencePosition.xz - data.displacedPoint.xz;
 
             // Length of the offset vector
             data.distance = Mathf.Sqrt(data.offset.x * data.offset.x + data.offset.y * data.offset.y);
@@ -649,61 +623,71 @@ namespace UnityEngine.Rendering.HighDefinition
             return data;
         }
 
-        public static float FindVerticalDisplacements(WaterSurface waterSurface, float3 targetPosition, int iteration, float error)
+#if false
+        static float2[] shifts = new float2[8] { new float2(-1, -1), new float2(0, -1), new float2(1, -1),
+                                                new float2(-1, 0), new float2(1, 0),
+                                                    new float2(-1, 1), new float2(0, 1), new float2(1, 1) };
+#else
+        static float2[] shifts = new float2[3] { new float2(1, 0), new float2(0, 1), new float2(1.0f, 1.0f)};
+#endif
+
+
+        public static void FindVerticalDisplacement(WaterSurface waterSurface, float3 targetPosition, int iteration, float error, out float height, out float finalError)
         {
+            // Initialize the outputs
+            height = 0.0f;
+            finalError = float.MaxValue;
+
             // Can't do anything if the simulation data has not been allocated
             if (waterSurface.simulation == null)
-                return 0.0f;
+                return;
 
             // Initialize the search data
-            int stepCount = 0;
             WaterSimulationTapData tapData = EvaluateDisplacementData(waterSurface, targetPosition, targetPosition);
-            float3 currentLocation = targetPosition - new float3(tapData.offset.x, 0, tapData.offset.y);
+            float3 currentLocation = targetPosition;
             float2 stepSize = tapData.offset;
             float currentError = tapData.distance;
             float currentHeight = tapData.height;
+            int stepCount = 0;
 
             while (stepCount < iteration)
             {
-                bool progress = false;
                 // Is the point close enough to target position?
                 if (currentError < error)
                     break;
 
-                // Keep track of the step size that will be use for the 4 samples
+                // Reset the search progress flag
+                bool progress = false;
+
+                // Save the size of the step that will be used for the candidates
                 float2 localSearchStepSize = stepSize;
 
-                float3 candidateLocation = currentLocation - new float3(localSearchStepSize.x, 0, 0);
-                tapData = EvaluateDisplacementData(waterSurface, candidateLocation, targetPosition);
-                if (tapData.distance < currentError)
+                // Loop through the 4 candidates
+                //for (int candidateIdx = 0; candidateIdx < 3; ++candidateIdx)
                 {
-                    currentLocation = candidateLocation;
-                    stepSize = tapData.offset;
-                    currentError = tapData.distance;
-                    currentHeight = tapData.height;
-                    progress = true;
-                }
-
-                candidateLocation = currentLocation - new float3(0, 0, localSearchStepSize.y);
-                tapData = EvaluateDisplacementData(waterSurface, candidateLocation, targetPosition);
-                if (tapData.distance < currentError)
-                {
-                    currentLocation = candidateLocation;
-                    stepSize = tapData.offset;
-                    currentError = tapData.distance;
-                    currentHeight = tapData.height;
-                    progress = true;
+                    float2 currentShift = new float2(1.0f, 1.0f);
+                    float3 candidateLocation = currentLocation + new float3(currentShift.x * localSearchStepSize.x, 0, currentShift.y * localSearchStepSize.y);
+                    tapData = EvaluateDisplacementData(waterSurface, candidateLocation, targetPosition);
+                    if (tapData.distance < currentError)
+                    {
+                        currentLocation = candidateLocation;
+                        stepSize = tapData.offset;
+                        currentError = tapData.distance;
+                        currentHeight = tapData.height;
+                        progress = true;
+                    }
                 }
 
                 // If we didn't make any progress in this step, this means out steps are probably too big make them smaller
                 if (!progress)
-                    stepSize *= 0.25f;
+                    stepSize *= 0.5f;
 
-                // If none of the 4 steps managed to get closer, we need a smaller step
                 stepCount++;
             }
 
-            return currentHeight;
+            // Output the values
+            height = currentHeight;
+            finalError = currentError;
         }
     }
 }
