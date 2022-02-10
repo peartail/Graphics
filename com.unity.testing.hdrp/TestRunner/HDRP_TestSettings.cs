@@ -31,6 +31,8 @@ public class HDRP_TestSettings : GraphicsTestSettings
     [Tooltip("RP Asset change is only effective after a frame is render")]
     public bool forceCameraRenderDuringSetup = false;
 
+    bool forceRender = false;
+
     void Awake()
     {
         if (renderPipelineAsset == null)
@@ -46,11 +48,17 @@ public class HDRP_TestSettings : GraphicsTestSettings
             quitDebug.AppendLine($"{SceneManager.GetActiveScene().name} RP asset change: {((currentRP == null) ? "null" : currentRP.name)} => {renderPipelineAsset.name}");
 
             GraphicsSettings.renderPipelineAsset = renderPipelineAsset;
+            forceRender = forceCameraRenderDuringSetup;
+        }
+    }
 
-            // Render pipeline is only reconstructed when a frame is renderer
-            // If scene requires lightmap baking, we have to force it
-            if (forceCameraRenderDuringSetup && !Application.isPlaying)
-                Camera.main.Render();
+    public void Start()
+    {
+        // Render pipeline is only reconstructed when a frame is renderer
+        // If scene requires lightmap baking, we have to force it
+        if (forceRender && !Application.isPlaying)
+        {
+            Camera.main.Render();
         }
     }
 
