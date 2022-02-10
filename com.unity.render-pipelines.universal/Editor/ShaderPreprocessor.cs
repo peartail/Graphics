@@ -719,7 +719,7 @@ namespace UnityEditor.Rendering.Universal
                 }
 
                 compilerDataList.RemoveRange(inputShaderVariantCount, compilerDataList.Count - inputShaderVariantCount);
-               
+
             }
 
             LogShaderVariants(shader, snippetData, prevVariantCount, compilerDataList.Count, stripTimeMs);
